@@ -1,4 +1,3 @@
-
 services:
   # MongoDB for User Service
   user-db:
@@ -90,11 +89,14 @@ services:
     ports:
       - "8081:8081"
     environment:
+      SPRING_CONFIG_IMPORT: optional:configserver:http://host.docker.internal:8888
       SPRING_DATA_MONGODB_URI: mongodb://user-db:27017/user_db
       SPRING_RABBITMQ_HOST: rabbitmq
       SPRING_RABBITMQ_PORT: 5672
       SPRING_RABBITMQ_USERNAME: guest
       SPRING_RABBITMQ_PASSWORD: guest
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       user-db:
         condition: service_healthy
@@ -113,6 +115,7 @@ services:
     ports:
       - "8082:8082"
     environment:
+      SPRING_CONFIG_IMPORT: optional:configserver:http://host.docker.internal:8888
       DB_HOST: product-db
       DB_PORT: 3306
       DB_NAME: product_db
@@ -122,6 +125,8 @@ services:
       SPRING_RABBITMQ_PORT: 5672
       SPRING_RABBITMQ_USERNAME: guest
       SPRING_RABBITMQ_PASSWORD: guest
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       product-db:
         condition: service_healthy
@@ -140,6 +145,7 @@ services:
     ports:
       - "8083:8083"
     environment:
+      SPRING_CONFIG_IMPORT: optional:configserver:http://host.docker.internal:8888
       DB_HOST: order-db
       DB_PORT: 3306
       DB_NAME: order_db
@@ -149,6 +155,8 @@ services:
       SPRING_RABBITMQ_PORT: 5672
       SPRING_RABBITMQ_USERNAME: guest
       SPRING_RABBITMQ_PASSWORD: guest
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       order-db:
         condition: service_healthy
