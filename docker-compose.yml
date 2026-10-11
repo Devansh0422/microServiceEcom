@@ -1,5 +1,6 @@
-services:
 
+services:
+  # MongoDB for User Service
   user-db:
     image: mongo:7
     container_name: user-db
@@ -11,19 +12,19 @@ services:
     volumes:
       - user-db-data:/data/db
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - backend
 
+  # MySQL for Product Service
   product-db:
     image: mysql:8.0
     container_name: product-db
     restart: always
     ports:
-
-
-
       - "3307:3306"
     environment:
       MYSQL_ROOT_PASSWORD: root
@@ -35,7 +36,10 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - backend
 
+  # MySQL for Order Service
   order-db:
     image: mysql:8.0
     container_name: order-db
@@ -52,7 +56,31 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - backend
 
+  # RabbitMQ Message Broker
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    restart: always
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - backend
+
+  # User Service
   user-service:
     build:
       context: ./user
@@ -63,10 +91,19 @@ services:
       - "8081:8081"
     environment:
       SPRING_DATA_MONGODB_URI: mongodb://user-db:27017/user_db
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: guest
+      SPRING_RABBITMQ_PASSWORD: guest
     depends_on:
       user-db:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - backend
 
+  # Product Service
   product-service:
     build:
       context: ./product
@@ -81,10 +118,19 @@ services:
       DB_NAME: product_db
       DB_USER: root
       DB_PASSWORD: root
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: guest
+      SPRING_RABBITMQ_PASSWORD: guest
     depends_on:
       product-db:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - backend
 
+  # Order Service
   order-service:
     build:
       context: ./order
@@ -99,11 +145,24 @@ services:
       DB_NAME: order_db
       DB_USER: root
       DB_PASSWORD: root
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: guest
+      SPRING_RABBITMQ_PASSWORD: guest
     depends_on:
       order-db:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - backend
 
 volumes:
   user-db-data:
   product-db-data:
   order-db-data:
+  rabbitmq-data:
+
+networks:
+  backend:
+    driver: bridge
